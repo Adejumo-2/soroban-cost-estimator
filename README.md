@@ -97,6 +97,13 @@ soroban-cost-estimator estimate \
 
 Use `--json` for machine-readable output (e.g., for CI pipelines).
 
+The read/write entry counts and byte sizes in the report are decoded from the
+simulation response's resource **footprint** — real values from the ledger
+footprint, not zero-filled placeholders. If a fee-rate source
+(`ConfigSetting*`) can't be fetched, the tool prints a warning naming the
+source and zeroes only the affected rate (so the non-refundable fee is visibly
+understated) rather than silently reporting a wrong fee.
+
 ### `estimate-all`
 
 Enumerate every public contract function (including typed params decoded from
@@ -112,6 +119,9 @@ soroban-cost-estimator estimate-all \
 
 Functions requiring arguments are reported as `"Skipped — needs --fn/--arg"`
 (prompting you to specify them manually), rather than silently skipped.
+
+A `[i/N] <function>` progress line is printed before each simulation, so you
+can watch progress on contracts with many functions.
 
 ### `config snapshot`
 
@@ -148,6 +158,9 @@ soroban-cost-estimator watch --network testnet --interval 30m
 
 Intervals accept `s`/`m`/`h`/`d` suffixes or bare seconds (default `1h`).
 Useful in CI or cron jobs to monitor for unexpected pricing changes.
+
+Press `Ctrl-C` (SIGINT) or send `SIGTERM` to stop **cleanly** (exit code 0):
+the in-flight poll is cancelled rather than writing a partial snapshot.
 
 ## Installation
 
@@ -206,8 +219,10 @@ cargo install soroban-cost-estimator
 2. **RPC simulation**: Constructs a `TransactionEnvelope` with an
    `InvokeHostFunctionOp` and calls `simulateTransaction` on the target network.
 3. **Fee breakdown**: Parses `minResourceFee` from the simulation response and
-   computes a non-refundable/refundable fee breakdown using integer stroops
-   math — no floating point.
+   derives the non-refundable and refundable portions **independently** from
+   the network's own config-sourced rates (CPU, storage I/O, bandwidth), using
+   integer stroops math — no floating point. The response's resource footprint
+   provides the real read/write entry counts and byte sizes.
 4. **Config snapshotting**: Fetches `ConfigSetting*` entries via
    `getLedgerEntries`, decodes the XDR using `stellar-xdr` 27.x (big-endian),
    and stores them as versioned JSON snapshots.
@@ -226,6 +241,27 @@ All data is stored locally — no database required:
 The cache enables `config diff` to tell you *which* of your past estimates are
 now stale after a network pricing change.
 
+## ✅ Verified against live testnet
+
+The invocation path is proven end-to-end against a **real deployed contract**
+on Stellar testnet, cross-checked against the native Stellar CLI:
+
+- **Deployed contract**: an `increment(step: i64)` Soroban contract — its wasm
+  hash matches `tests/fixtures/contract.wasm` exactly.
+- **Contract ID**: `CC4WIEYYSCFGDJXMLZ73FKUUJNDEOJRNOOBZHI55QR27NW4RCNTHAQ5T`
+- **Cross-check**: the same invocation simulated by this tool vs
+  `stellar contract invoke --cost`:
+
+| Metric | This tool | Native CLI | Divergence |
+|--------|-----------|------------|------------|
+| CPU instructions | 524,389 | 524,389 | **exact match** |
+| Total fee (stroops) | 18,999 | 18,999 | **≤ 0.011%** |
+
+Full reproduction steps (`stellar contract install` → `create` →
+`soroban-cost-estimator estimate --fn increment --arg step=5` →
+`stellar contract invoke --cost`) and the complete record live in
+[`tests/fixtures/contract/README.md`](tests/fixtures/contract/README.md).
+
 ## Project Status
 
 | Feature | Status |
@@ -239,6 +275,28 @@ now stale after a network pricing change.
 | JSON output (`--json`) | ✅ |
 | Fee breakdown (non-refundable/refundable) | ✅ |
 | Estimate result caching | ✅ |
+| Verified against live testnet (cross-checked) | ✅ |
+| Footprint read/write entries & bytes (real, not zeros) | ✅ |
+| Watch graceful shutdown (SIGINT/SIGTERM) | ✅ |
+| `estimate-all` progress indicator | ✅ |
+| Fee-rate source degradation warnings | ✅ |
+
+## Testing & CI
+
+53 tests (unit + integration) cover the fee math — including the regression
+for the exact input that used to produce a negative refundable fee — plus RPC
+response parsing, XDR decoding, the cache, config diff, the WASM parser, and
+CLI behavior.
+
+```bash
+cargo test --all
+cargo clippy --all-targets --all-features   # pedantic-level denies are on
+cargo fmt --check
+```
+
+Every push runs these gates on GitHub Actions (`.github/workflows/ci.yml`,
+job `build`): format → clippy → build → fixture → tests. `main` is protected —
+the `build` check must be green for changes to merge.
 
 ## Topics
 
@@ -259,3 +317,8 @@ your option.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details on coding standards, PR
 process, and project structure.
+
+Looking for something to work on? The
+[issue backlog](https://github.com/aigbagbobila/soroban-cost-estimator/issues)
+holds scoped issues with Summary / Acceptance Criteria / Tech Stack — good
+first tasks for the Drips Stellar Wave contributor sprints.
