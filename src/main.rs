@@ -40,6 +40,12 @@ async fn run(args: cli::Cli) -> error::AppResult<()> {
             )
             .await
         }
+        cli::Command::EstimateAll {
+            wasm,
+            network,
+            id,
+            json,
+        } => cmd_estimate_all(&wasm, &network, id.as_deref(), json).await,
     }
 }
 fn missing_simulation_data(resp: &rpc::simulate::SimulateTransactionResponse) -> bool {
@@ -288,5 +294,189 @@ async fn cmd_estimate(
     }
 
     Ok(())
+}
+
+/// `estimate-all` command: enumerate all functions and estimate each.
+async fn cmd_estimate_all(
+    wasm_path: &str,
+    network: &str,
+    contract_id: Option<&str>,
+    json_flag: bool,
+) -> error::AppResult<()> {
+    let wasm_info = wasm::parser::load_wasm(std::path::Path::new(wasm_path))?;
+    let endpoint = rpc::client::resolve_endpoint(network, None)?;
+    let client = rpc::client::RpcClient::new(&endpoint);
+
+    if !json_flag {
+        println!(
+            "Enumerated {} function(s) in WASM:",
+            wasm_info.functions.len()
+        );
+        for (i, fn_info) in wasm_info.functions.iter().enumerate() {
+            println!("  {}. {}", i + 1, wasm::parser::format_function(fn_info));
+        }
+        println!();
+        println!(
+            "Contract spec: {}",
+            if wasm_info.has_spec {
+                "present (typed params decoded from contractspecv0)"
+            } else {
+                "absent (bare WASM exports only)"
+            }
+        );
+        if contract_id.is_none() {
+            println!(
+                "Note: pass --id <contract-id> to simulate each function against a deployed contract."
+            );
+        }
+    }
+
+    use sha2::Digest;
+    let wasm_hash = hex::encode(sha2::Sha256::digest(&wasm_info.bytes));
+
+    let mut json_results: Vec<serde_json::Value> = Vec::new();
+    let total = wasm_info.functions.len();
+    for (i, fn_info) in wasm_info.functions.iter().enumerate() {
+        if !json_flag {
+            println!("[{}/{}] {}", i + 1, total, fn_info.name);
+        }
+        let result = estimate_all_function(
+            &client,
+            &wasm_info,
+            fn_info,
+            contract_id,
+            &wasm_hash,
+            network,
+            json_flag,
+        )
+        .await?;
+        if let Some(value) = result {
+            json_results.push(value);
+        }
+    }
+
+    if json_flag {
+        println!("{}", serde_json::to_string_pretty(&json_results)?);
+    }
+
+    Ok(())
+}
+
+/// Estimates one exported function against the network, printing its result
+/// (non-JSON mode) or returning its JSON record (JSON mode).
+async fn estimate_all_function(
+    client: &rpc::client::RpcClient,
+    wasm_info: &wasm::parser::WasmInfo,
+    fn_info: &wasm::parser::FunctionInfo,
+    contract_id: Option<&str>,
+    wasm_hash: &str,
+    network: &str,
+    json_flag: bool,
+) -> error::AppResult<Option<serde_json::Value>> {
+    if fn_info.param_count > 0 {
+        let reason = format!("needs --fn/--arg ({} param(s))", fn_info.param_count);
+        if json_flag {
+            return Ok(Some(serde_json::json!({
+                "function": fn_info.name,
+                "status": "skipped",
+                "reason": reason,
+            })));
+        }
+        println!("── Estimating '{}' ── Skipped: {reason}", fn_info.name);
+        return Ok(None);
+    }
+
+    let tx_xdr = match xdr_helper::build_simulation_tx_envelope(
+        &wasm_info.bytes,
+        contract_id,
+        Some(fn_info.name.as_str()),
+        &[],
+    ) {
+        Ok(tx) => tx,
+        Err(e) => {
+            if json_flag {
+                return Ok(Some(serde_json::json!({
+                    "function": fn_info.name,
+                    "status": "skipped",
+                    "reason": e.to_string(),
+                })));
+            }
+            eprintln!("── Estimating '{}' ── Skipped: {e}", fn_info.name);
+            return Ok(None);
+        }
+    };
+    let tx_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &tx_xdr);
+
+    match rpc::simulate::simulate_transaction(client, &tx_b64).await {
+        Ok(resp) => {
+            // Same fail-loudly guard as `estimate`: no cost data + no ledger
+            // means a misconfigured request, not a free transaction.
+            if missing_simulation_data(&resp) {
+                let msg = "simulation returned no cost data and no latest ledger — check --id and the RPC endpoint";
+                if json_flag {
+                    return Ok(Some(serde_json::json!({
+                        "function": fn_info.name,
+                        "status": "error",
+                        "error": msg,
+                    })));
+                }
+                eprintln!("── Estimating '{}' ── Error: {msg}", fn_info.name);
+                return Ok(None);
+            }
+
+            let (cpu, mem, ..) = response_resources(&resp)?;
+            let fee = rpc::simulate::parse_resource_fee(&resp.min_resource_fee)
+                .unwrap_or(None)
+                .or(rpc::simulate::parse_transaction_data_resource_fee(
+                    &resp.transaction_data,
+                )?)
+                .unwrap_or(0);
+            let xlm = report::fee_calc::stroops_to_xlm(fee);
+            let ledger: u32 = resp
+                .latest_ledger
+                .and_then(|l| u32::try_from(l).ok())
+                .unwrap_or(0);
+
+            let _ = cache::save_estimate(
+                wasm_hash,
+                &fn_info.name,
+                &[],
+                network,
+                ledger,
+                fee,
+                cpu,
+                mem,
+            );
+
+            if json_flag {
+                Ok(Some(serde_json::json!({
+                    "function": fn_info.name,
+                    "status": "ok",
+                    "cpu_instructions": cpu,
+                    "memory_bytes": mem,
+                    "fee_stroops": fee,
+                    "fee_xlm": xlm,
+                    "ledger": ledger,
+                })))
+            } else {
+                println!(
+                    "CPU: {cpu} insns | Mem: {mem} bytes | Fee: {fee} stroops ({xlm} XLM) | Ledger: {ledger}"
+                );
+                Ok(None)
+            }
+        }
+        Err(e) => {
+            if json_flag {
+                Ok(Some(serde_json::json!({
+                    "function": fn_info.name,
+                    "status": "error",
+                    "error": e.to_string(),
+                })))
+            } else {
+                eprintln!("Skipped — simulation failed: {e}");
+                Ok(None)
+            }
+        }
+    }
 }
 
