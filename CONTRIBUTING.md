@@ -6,7 +6,7 @@ We welcome contributions! Here's how to get started.
 
 ```bash
 # Clone the repo
-git clone https://github.com/stellar/soroban-cost-estimator.git
+git clone https://github.com/aigbagbobila/soroban-cost-estimator.git
 cd soroban-cost-estimator
 
 # Build
