@@ -50,6 +50,9 @@ async fn run(args: cli::Cli) -> error::AppResult<()> {
             cli::ConfigAction::Snapshot { network, out, json } => {
                 cmd_config_snapshot(&network, out.as_deref(), json).await
             }
+            cli::ConfigAction::Diff { network, against } => {
+                cmd_config_diff(&network, against.as_deref()).await
+            }
         },
     }
 }
@@ -517,3 +520,63 @@ async fn cmd_config_snapshot(
     Ok(())
 }
 
+/// `config diff` command: compare current config against a snapshot.
+async fn cmd_config_diff(network: &str, against_path: Option<&str>) -> error::AppResult<()> {
+    let old_snapshot = match against_path {
+        Some(path) => config_snapshot::store::load_snapshot_from_path(path)?,
+        None => config_snapshot::store::load_latest_snapshot(network)?,
+    };
+
+    let endpoint = rpc::client::resolve_endpoint(network, None)?;
+    let client = rpc::client::RpcClient::new(&endpoint);
+    let raw_entries = rpc::config::fetch_all_config_settings(&client).await?;
+
+    let mut new_snapshot = xdr_helper::begin_snapshot(network, 0);
+    for raw in &raw_entries {
+        let config_entry = xdr_helper::decode_config_entry_xdr(&raw.config_xdr)?;
+        xdr_helper::apply_config_entry(&mut new_snapshot, config_entry);
+    }
+    if let Some(latest) = raw_entries.iter().map(|e| e.last_modified_ledger).max() {
+        new_snapshot.ledger = latest;
+    }
+
+    let diff = config_snapshot::diff::diff_snapshots(&old_snapshot, &new_snapshot);
+    println!("{}", config_snapshot::diff::format_diff(&diff));
+
+    // Always check for stale cached estimates, regardless of pricing changes
+    match cache::list_cached_estimates(network) {
+        Ok(estimates) => {
+            if !estimates.is_empty() {
+                let stale = cache::find_stale_estimates(&estimates, new_snapshot.ledger);
+                if stale.is_empty() {
+                    println!(
+                        "  All cached estimates are current (ledger {}).",
+                        new_snapshot.ledger
+                    );
+                } else {
+                    println!(
+                        "  {} cached estimate(s) from earlier ledger(s) — may be stale:",
+                        stale.len()
+                    );
+                    for est in &stale {
+                        println!(
+                            "    - {} @ ledger {} (current: {})",
+                            est.function, est.ledger, new_snapshot.ledger
+                        );
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            println!("  Warning: could not check cache: {e}");
+        }
+    }
+
+    if diff.has_pricing_changes {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+/// Parse an interval like `3600`, `3600s`, `30m`, `1h`, or `1d` into seconds.
+///
