@@ -1,0 +1,101 @@
+[package]
+name = "soroban-cost-estimator"
+version = "0.1.0"
+edition = "2024"
+description = "CLI tool to estimate Soroban contract resource costs with network config-drift tracking."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/stellar/soroban-cost-estimator"
+rust-version = "1.85"
+default-run = "soroban-cost-estimator"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)'] }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+# Allow pedantic lints that conflict with practical development
+cargo_common_metadata = { level = "allow", priority = 1 }
+doc_markdown = { level = "allow", priority = 1 }
+missing_panics_doc = { level = "allow", priority = 1 }
+missing_errors_doc = { level = "allow", priority = 1 }
+module_name_repetitions = { level = "allow", priority = 1 }
+similar_names = { level = "allow", priority = 1 }
+cast_lossless = { level = "allow", priority = 1 }
+cast_possible_truncation = { level = "allow", priority = 1 }
+cast_sign_loss = { level = "allow", priority = 1 }
+must_use_candidate = { level = "allow", priority = 1 }
+significant_drop_tightening = { level = "allow", priority = 1 }
+# These are overly noisy for a CLI project in active development
+struct_excessive_bools = { level = "allow", priority = 1 }
+ref_option = { level = "allow", priority = 1 }
+format_push_string = { level = "allow", priority = 1 }
+uninlined_format_args = { level = "allow", priority = 1 }
+redundant_closure_for_method_calls = { level = "allow", priority = 1 }
+separated_literal_suffix = { level = "allow", priority = 1 }
+cast_precision_loss = { level = "allow", priority = 1 }
+items_after_statements = { level = "allow", priority = 1 }
+wildcard_imports = { level = "allow", priority = 1 }
+doc_lazy_continuation = { level = "allow", priority = 1 }
+needless_borrow = { level = "allow", priority = 1 }
+case_sensitive_file_extension_comparisons = { level = "allow", priority = 1 }
+cast_possible_wrap = { level = "allow", priority = 1 }
+redundant_closure = { level = "allow", priority = 1 }
+single_match_else = { level = "allow", priority = 1 }
+map_unwrap_or = { level = "allow", priority = 1 }
+useless_format = { level = "allow", priority = 1 }
+too_many_arguments = { level = "allow", priority = 1 }
+
+[dependencies]
+# CLI
+clap = { version = "4.6.4", features = ["derive"] }
+
+# Async runtime
+tokio = { version = "1.53.1", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.13.4", features = ["json"] }
+
+# Serialization
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+# WASM parsing
+wasmparser = "0.254.0"
+
+# XDR types and decoding
+stellar-xdr = "27.0.0"
+
+# Table formatting
+comfy-table = "7.2.2"
+
+# Encoding
+base64 = "0.23.0"
+hex = "0.4.3"
+
+# Hashing
+sha2 = "0.11.0"
+
+# Timestamps
+chrono = { version = "0.4.45", features = ["serde"] }
+
+# Directory paths
+dirs = "6.0.0"
+
+# Error handling
+thiserror = "2.0.19"
+
+[dev-dependencies]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[[bin]]
+name = "soroban-cost-estimator"
+path = "src/main.rs"
+
+[[bin]]
+name = "gen_test_wasm"
+path = "src/bin/gen_test_wasm.rs"
