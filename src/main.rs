@@ -54,6 +54,7 @@ async fn run(args: cli::Cli) -> error::AppResult<()> {
                 cmd_config_diff(&network, against.as_deref()).await
             }
         },
+        cli::Command::Watch { network, interval } => cmd_watch(&network, &interval).await,
     }
 }
 fn missing_simulation_data(resp: &rpc::simulate::SimulateTransactionResponse) -> bool {
@@ -580,3 +581,114 @@ async fn cmd_config_diff(network: &str, against_path: Option<&str>) -> error::Ap
 
 /// Parse an interval like `3600`, `3600s`, `30m`, `1h`, or `1d` into seconds.
 ///
+/// Defaults to one hour on unparseable input.
+fn parse_interval_secs(interval: &str) -> u64 {
+    let trimmed = interval.trim().to_ascii_lowercase();
+    let (num_part, mult) = match trimmed.chars().last() {
+        Some('s') => (&trimmed[..trimmed.len() - 1], 1u64),
+        Some('m') => (&trimmed[..trimmed.len() - 1], 60u64),
+        Some('h') => (&trimmed[..trimmed.len() - 1], 3600u64),
+        Some('d') => (&trimmed[..trimmed.len() - 1], 86_400u64),
+        _ => (&trimmed[..], 1u64),
+    };
+    num_part.parse::<u64>().unwrap_or(3600).saturating_mul(mult)
+}
+
+/// Resolves when the process receives SIGINT (Ctrl-C) or SIGTERM, so a
+/// long-running command can stop gracefully.
+///
+/// # Network calls
+/// `watch` command: poll network config and print diffs.
+async fn cmd_watch(network: &str, interval: &str) -> error::AppResult<()> {
+    let interval_secs: u64 = parse_interval_secs(interval);
+
+    println!(
+        "Watching {} for config changes every {}s...",
+        network, interval_secs
+    );
+
+    let mut first = true;
+    loop {
+        let endpoint = rpc::client::resolve_endpoint(network, None)?;
+        let client = rpc::client::RpcClient::new(&endpoint);
+
+        match rpc::config::fetch_all_config_settings(&client).await {
+            Ok(raw_entries) => {
+                let mut snapshot = xdr_helper::begin_snapshot(network, 0);
+                for raw in &raw_entries {
+                    if let Ok(config_entry) =
+                        xdr_helper::decode_config_entry_xdr(&raw.config_xdr)
+                    {
+                        xdr_helper::apply_config_entry(&mut snapshot, config_entry);
+                    }
+                }
+                if let Some(latest) = raw_entries.iter().map(|e| e.last_modified_ledger).max() {
+                    snapshot.ledger = latest;
+                }
+
+                if !first {
+                    if let Ok(old_snapshot) =
+                        config_snapshot::store::load_latest_snapshot(network)
+                    {
+                        let diff =
+                            config_snapshot::diff::diff_snapshots(&old_snapshot, &snapshot);
+                        if !diff.changes.is_empty() {
+                            println!("{}", config_snapshot::diff::format_diff(&diff));
+                        }
+
+                        // Always check for stale cached estimates, regardless of pricing changes
+                        if let Ok(estimates) = cache::list_cached_estimates(network) {
+                            if !estimates.is_empty() {
+                                let stale =
+                                    cache::find_stale_estimates(&estimates, snapshot.ledger);
+                                if stale.is_empty() {
+                                    println!(
+                                        "  All cached estimates are current (ledger {}).",
+                                        snapshot.ledger
+                                    );
+                                } else {
+                                    println!(
+                                        "  {} cached estimate(s) from earlier ledger(s) — may be stale:",
+                                        stale.len()
+                                    );
+                                    for est in &stale {
+                                        println!(
+                                            "    - {} @ ledger {} (current: {})",
+                                            est.function, est.ledger, snapshot.ledger
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                let _ = config_snapshot::store::save_snapshot(&snapshot, None);
+                first = false;
+            }
+            Err(e) => {
+                eprintln!("Warning: failed to fetch config: {e}");
+            }
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+    }
+}
+mod tests {
+    use super::parse_interval_secs;
+
+    #[test]
+    fn test_parse_interval_secs() {
+        assert_eq!(parse_interval_secs("3600"), 3600);
+        assert_eq!(parse_interval_secs("3600s"), 3600);
+        assert_eq!(parse_interval_secs("30m"), 1800);
+        assert_eq!(parse_interval_secs("1h"), 3600);
+        assert_eq!(parse_interval_secs("1d"), 86_400);
+        assert_eq!(parse_interval_secs(" 5M "), 300);
+        // Unparseable input falls back to the one-hour default.
+        assert_eq!(parse_interval_secs(""), 3600);
+        assert_eq!(parse_interval_secs("s"), 3600);
+        assert_eq!(parse_interval_secs("10ss"), 3600);
+        assert_eq!(parse_interval_secs("garbage"), 3600);
+    }
+}
