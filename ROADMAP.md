@@ -1,6 +1,6 @@
 # 🗺️ soroban-cost-estimator — Project Roadmap
 
-> **Last updated:** 2026-08-03 (Session 3 — remediation compliance report)
+> **Last updated:** 2026-08-03 (Session 4 — finish line executed)
 >
 > This document tracks build progress against the 20-step specification, logs
 > conversation IDs for each logical unit of work, and describes the completion
@@ -15,11 +15,15 @@
 > **Session 2** (CID-025 … CID-037) was the remediation pass: fee-bug
 > root-cause, live invocation cross-check, real WASM fixture, issue backlog
 > script, git-rewrite plan.
-> **Session 3** (CID-038 …, this session) re-ran the ground truth, closed
-> CID-033 (the `contractspecv0` framing fix), and produced this compliance
-> report. Live-network claims from Session 2 are re-verified here where
-> locally possible (tests, hashes, artifacts) and flagged where they rely on
-> recorded Session-2 evidence.
+> **Session 3** (CID-038 … CID-044) re-ran the ground truth, closed
+> CID-033 (the `contractspecv0` framing fix), and produced the compliance
+> report.
+> **Session 4** (CID-045 … CID-052, this session) executed the finish-line
+> prompt: `gh` unblocked, three polish units committed cleanly, branch
+> renamed to `main` with the **first real green CI runs**, history split into
+> **24 conventional commits**, topics + branch protection live, **6 backlog
+> issues created**, `v0.1.0` tagged, publish dry-run clean, and the Drips
+> supplementary-materials question answered (none required).
 
 ---
 
@@ -27,17 +31,17 @@
 
 | Metric | Value |
 |--------|-------|
-| **Tests** | **53 total, 53 passing** (24 lib unit + 1 bin unit + 28 integration: 11 CLI + 7 cache + 6 config diff + 4 parser). No failures, no ignores. |
-| **Clippy** | `clippy::all` + `clippy::pedantic` = **deny** (Cargo.toml `[lints]`). Committed HEAD is clean; **uncommitted working-tree polish currently breaks the pedantic gate** (2 findings, see Session 3). |
-| **fmt** | ❌ `cargo fmt --check` **fails even at HEAD** on `src/bin/gen_test_wasm.rs` (comment-alignment reformat) → CI's first gate is red. |
+| **Tests** | **53 total, 53 passing** locally and **green on GitHub Actions** (`build` job) against the rewritten history. |
+| **Clippy / fmt** | ✅ `cargo fmt --check` and `cargo clippy --all-targets --all-features` (`all` + `pedantic` deny) all clean — enforced by CI, which is green. |
 | **`unwrap()`/`expect()` in src/** | Only inside `#[cfg(test)]` modules — spec-compliant. |
-| **CLI commands** | 5/5 wired; `estimate --fn --arg` **verified against a deployed contract on testnet** (ledger ~3,898,1xx; CPU exact match vs native CLI, fee ≤0.011% divergence — see Phase 2 evidence). |
-| **Git** | 2 commits (`341bdc8 first commit pending review`, `c3eaa1c feat: remediate…`) + **dirty working tree** (`src/main.rs`, `src/rpc/simulate.rs`). History split still pending (Phase 4). |
-| **Fixture** | `tests/fixtures/contract.wasm` = **4,742-byte release build** of the real `increment(step: i64)` Soroban contract (wasm32v1-none, soroban-sdk 25.3.2). **SHA-256 `ea14bca9…e4ecd` matches the wasm hash of the live deployed contract's cached estimate.** |
-| **Networks tested** | ✅ testnet (config fetch + snapshot live; increment contract deployed, invocation cross-checked vs `stellar contract invoke --cost`) |
-| **Toolchain** | Rust 1.85 (edition 2024); Stellar CLI 27.0.0 at `~/.cargo/bin/stellar`; testnet key `test-key` exists; `gh` CLI **not installed** (blocks topics/branch-protection/issues). |
-| **Backlog issues** | 6 drafted in `scripts/create_issues.sh`; **not yet created on GitHub** (gh missing). |
-| **Completion estimate** | ~95% of MVP; ~75% of Drips-ready submission (git split + repo readiness + issues still open). |
+| **CLI commands** | 5/5 wired; `estimate --fn --arg` verified against a deployed contract on testnet (CPU exact match, fee ≤0.011%) — reviewable record in `tests/fixtures/contract/README.md`. |
+| **Git** | `main` = **24 conventional commits** (rewritten, force-pushed with lease); no batch commits; branch protection live with required check `build`. |
+| **CI** | First-ever runs landed 2026-08-03 on `main`: #30789364471 (pre-rewrite) and #30789732360 (rewritten history) — **both success**. |
+| **Fixture** | `tests/fixtures/contract.wasm` = 4,742-byte release build, SHA-256 `ea14bca9…e4ecd` matches the deployed testnet contract. |
+| **Repo metadata** | Topics live (stellar, soroban, cli, developer-tooling, gas-estimation); LICENSE-MIT + LICENSE-APACHE added; Cargo.toml + CONTRIBUTING URLs fixed. |
+| **Backlog issues** | **6 issues live** with the `Stellar Wave` label (Summary / AC / Tech Stack intact); #1/#2 carry implementation-status comments. |
+| **Release** | Tag `v0.1.0` pushed; `cargo publish --dry-run` clean. **Real publish pending a crates.io token** (no `~/.cargo/credentials`). |
+| **Completion estimate** | ~100% of MVP; repo Drips-ready except the crates.io publish token and the application itself (Step 10). |
 
 ---
 
@@ -240,7 +244,36 @@ is committed yet. These are the first things to land (P0 below).
 
 ---
 
-## 🟡 PARTIALLY COMPLETE (updated 2026-08-03)
+## ✅ Session 4 — Finish-line execution (CID-045 … CID-052)
+
+| CID | Item | Status | What happened |
+|-----|------|--------|---------------|
+| CID-045 | `ops` gh CLI | ✅ | `gh` v2.97.0 installed to `~/.local/bin` (no sudo available); authenticated via the stored OAuth token (`repo` + `workflow` scopes; `read:org` missing but unneeded for repo-scoped ops). `gh auth status` ✓. |
+| CID-046 | `fix(cli)` clippy + polish landing | ✅ | `_ = async` → `() = async` (ignored_unit_patterns) and `let _ = watch_poll_once(...)` fixed; `cargo fmt` applied across 16 files (toolchain rustfmt drift — broader than the known `gen_test_wasm.rs` issue); all three gates green; committed as `style(fmt)` + the three feature units + roadmap doc. |
+| CID-047 | `chore(git)` branch rename | ✅ | `master` → `main` (local + remote), remote default branch updated, stale `master` deleted. **First real CI runs ever — both green.** |
+| CID-048 | `chore(git)` history split | ✅ | Orphan rewrite → **24 conventional commits** in dependency order (scaffold → error → wasm → rpc client/simulate → fee-calc → report → rpc config → config-snapshot model/store/diff → cache → xdr-helper → cli estimate/estimate-all/snapshot/diff/watch/watch-shutdown → tests → ci → docs → fixture → scripts). Final tree **byte-identical** to the previous main; force-pushed with lease (`efdc9b8 → 48df5c9`); CI green on the rewritten history. |
+| CID-049 | `chore(repo)` metadata | ✅ | CONTRIBUTING clone URL + Cargo.toml `repository` fixed to `aigbagbobila/…`; LICENSE-MIT + LICENSE-APACHE added; topics applied (5); branch protection live (required check `build`, strict, 1 review, enforce-admins). |
+| CID-050 | `docs(fixture)` cross-check record | ✅ | `tests/fixtures/contract/README.md`: contract ID, both number sets side by side, reproduction steps. |
+| CID-051 | `feat(issues)` backlog created | ✅ | `./scripts/create_issues.sh aigbagbobila/soroban-cost-estimator` ran: 6 issues live with `Stellar Wave` label; #1/#2 annotated with implementation-status comments. |
+| CID-052 | `chore(release)` tag + dry-run | ✅/🚧 | `v0.1.0` tagged + pushed; `cargo publish --dry-run` clean (40 files, verify OK). **Real publish blocked on crates.io token** (user action: `cargo login` or `CARGO_REGISTRY_TOKEN`). |
+
+### Finish-line findings worth recording
+
+1. **Drips supplementary materials: none required** (Phase-6 gate closed — see P4 above).
+2. **SCF "Soroban Resource Usage Reporter" 404s** — `stellar/soroban-resource-usage-reporter` returns HTTP 404 and GitHub search finds no match (2026-08-03). Re-confirm immediately before applying; the README's differentiator section currently links to this dead URL.
+3. **rustfmt drift**: the committed code was fmt-dirty against the current toolchain's rustfmt across 16 files (the earlier `fmt --check` failure was broader than `gen_test_wasm.rs`); fixed in one `style(fmt)` commit and absorbed into the rewrite.
+4. **Token scopes**: the stored OAuth token lacks `read:org` (gh warns on `auth status`) but has `repo` + `workflow` — sufficient for every operation in this session (push, force-with-lease, topics, branch protection, issues, tags).
+5. **Branch protection is now live**: direct pushes to `main` require a green `build` check + review — future changes should go through PRs.
+
+### What remains after Session 4
+
+1. **`cargo publish` (crates.io)** — blocked on a token: run `cargo login` (or set `CARGO_REGISTRY_TOKEN`) with an account that owns the `soroban-cost-estimator` name. Everything else is dry-run-verified.
+2. **Step 10 — Apply**: sign in to Drips Wave with GitHub, install the Drips Wave GitHub App on the org, sync and apply the repo to the Stellar Wave Program. Immediately before applying (fresh, not from memory): confirm the repo isn't already in the approved list, and re-confirm the SCF reporter's status (see finding #2).
+3. **Ongoing duties**: re-run `config diff` after protocol votes; re-verify `ConfigSetting*` XDR shapes on SDK bumps; keep posting fresh issues each Wave cycle.
+
+---
+
+## 🟡 PARTIALLY COMPLETE — historical snapshot (Session 3 state; superseded by Session 4 above)
 
 | Item | Status | Gap | Blocking Issue |
 |------|--------|-----|----------------|
@@ -258,7 +291,7 @@ stale); "44 tests, 1 in flight" → **53/53 passing**.
 
 ---
 
-## 🔴 REMAINING — with implementation plan
+## 🔴 REMAINING — Session-3 implementation plan (execution status recorded in Session 4)
 
 ### P0: Critical path (do first, in this order)
 
@@ -297,13 +330,14 @@ stale); "44 tests, 1 in flight" → **53/53 passing**.
 | Spec-typed `--arg` validation | Validate `--arg` values against the `contractspecv0` param types before building the envelope (drafted as an issue). |
 | `estimate-all --fn` subset filter / `contractmeta` parsing | P3 stretch. |
 
-### P4: Phase 6 gate — confirm with Drips before building extras
+### P4: Phase 6 gate — ANSWERED 2026-08-03 (see Session 4)
 
-Do not build a GitBook docs site or a demo video yet. Check
-`docs.drips.network/wave/maintainers/` directly (or ask in Drips' community
-channel) whether repo review expects supplementary materials. If confirmed,
-scope only what's actually asked — not the full playbook spec by default.
-This is a checkpoint, not a sprint item.
+**No supplementary materials required.** `docs.drips.network/wave/maintainers/`
+was checked via web research: repo review evaluates the GitHub repository
+itself — no documentation site, demo video, or on-chain contract verification
+is expected. Point system confirmed: Trivial 100 / Medium 150 / High 200
+(matches `scripts/create_issues.sh`). **Do not build a GitBook docs site or a
+demo video.**
 
 ### P5: Apply (Phase 9) — only after P0–P3
 
