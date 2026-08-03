@@ -3,7 +3,7 @@
 [![CI](https://github.com/aigbagbobila/soroban-cost-estimator/actions/workflows/ci.yml/badge.svg)](https://github.com/aigbagbobila/soroban-cost-estimator/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/soroban-cost-estimator)](https://crates.io/crates/soroban-cost-estimator)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE)
-![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-blue)
+[![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-blue)](LICENSE)
 
 **Estimate Soroban contract resource costs & track network pricing changes over time.**
 
@@ -13,10 +13,19 @@ and the fee in stroops/XLM for your compiled Soroban contract `.wasm` files.
 
 ## 🎯 What makes this different
 
-The existing [Soroban Resource Usage Reporter](https://github.com/stellar/soroban-resource-usage-reporter) (SCF-funded)
-focuses on one-shot test-phase cost estimation. **This tool** also tracks the
-*network's resource-pricing configuration* (`ConfigSettingContractComputeV0`,
-`ConfigSettingContractLedgerCostV0`, etc.) as a first-class, versioned artifact.
+The [Stellar Resource Usage Report](https://github.com/57blocks/stellar-resource-usage-report)
+is a real-time profiler: it instruments your JavaScript/TypeScript test code and
+prints resource tables (CPU instructions, memory, ledger entry sizes) from
+transactions executed against a local `stellar/quickstart` container. It answers
+*"what did my contract consume while I ran it just now?"*
+
+**This tool solves a different problem by a different mechanism.** It needs no
+test harness and no local container — it works from your **compiled artifacts**
+and gets real numbers from live `simulateTransaction` RPC simulation against
+testnet/mainnet. And it does something no other Soroban cost tool does: it
+tracks the *network's resource-pricing configuration*
+(`ConfigSettingContractComputeV0`, `ConfigSettingContractLedgerCostV0`, etc.)
+as a first-class, versioned artifact.
 
 It snapshots that config, diffs it against a previous snapshot, and tells you
 explicitly:

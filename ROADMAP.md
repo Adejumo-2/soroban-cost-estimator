@@ -1,6 +1,8 @@
 # 🗺️ soroban-cost-estimator — Project Roadmap
 
-> **Last updated:** 2026-08-03 (Session 5 — final compliance report)
+> **Last updated:** 2026-08-03 (Session 6 — closeout: competitor reference
+> corrected to the real project; all closeout verifications re-confirmed with
+> observed evidence)
 >
 > This document is the single source of truth for the project's state: what
 > has been built, what has been verified against live testnet, what the
@@ -18,7 +20,9 @@
 > built the real fixture; Session 3 (CID-038…044) re-verified ground truth
 > and closed the parser framing fix; Session 4 (CID-045…052) executed the
 > finish-line prompt (CI on, history split, repo readiness, issues, tag);
-> Session 5 (this revision) reconciles the roadmap to final status.
+> Session 5 reconciled the roadmap to final status; Session 6 (CID-053…059)
+> is the closeout — corrected the competitor reference and re-verified every
+> remaining claim with observed artifacts.
 
 ---
 
@@ -31,10 +35,10 @@
 | **`unwrap()`/`expect()` in src/** | Only inside `#[cfg(test)]` modules — spec-compliant. |
 | **CLI commands** | 5/5 wired; `estimate --fn --arg` verified against a **deployed contract on testnet** — CPU exact match, fee ≤0.011% vs `stellar contract invoke --cost` (record in `tests/fixtures/contract/README.md`). |
 | **Git** | `main` = **28 commits** (24-commit rewritten history + 4 follow-up units), branch protection live (required check `build`, strict, 1 review, enforce-admins). |
-| **CI** | **4 green runs** watched on `main`: `efdc9b8` #30789364471 · `48df5c9` #30789732360 · `6903d3e` #30789865544 · `bf04b39` #30790216052 — the first-ever CI runs, all success. |
+| **CI** | **5 green runs** watched on `main` (incl. current HEAD `ca4b3c1` #30790520631): `efdc9b8` #30789364471 · `48df5c9` #30789732360 · `6903d3e` #30789865544 · `bf04b39` #30790216052 · `ca4b3c1` #30790520631 — all success. |
 | **Fixture** | `tests/fixtures/contract.wasm` = 4,742-byte release build, SHA-256 `ea14bca9…e4ecd` **matches the deployed testnet contract**. |
 | **Repo metadata** | Topics live (stellar, soroban, cli, developer-tooling, gas-estimation); LICENSE-MIT + LICENSE-APACHE; Cargo.toml + CONTRIBUTING URLs at `aigbagbobila/…`. |
-| **Backlog issues** | **6 live** with the `Stellar Wave` label (Summary / AC / Tech Stack intact); #1/#2 annotated with implementation status. |
+| **Backlog issues** | **6 live** with the `Stellar Wave` label (Summary / AC / Tech Stack intact); #1/#2/#3 annotated with implementation status; landed ACs checked off in bodies (Session 6). |
 | **Release** | `v0.1.0` tag pushed; `cargo publish --dry-run` clean. **Real publish pending a crates.io token.** |
 | **Completion estimate** | **~100% of MVP; repo is Drips-ready** except the crates.io publish token and the application itself (user actions). |
 
@@ -83,6 +87,8 @@ Status legend: ✅ complete · 🚧 blocked on user action · 🔶 in progress �
 - [x] No documentation site or demo video built without direct Drips confirmation — none built; Phase-6 gate answered.
 - [x] At least 5 real, scoped, Acceptance-Criteria-complete issues exist in the repo — **6 issues live**.
 - [x] Branch protection + CI job names match `ci.yml` — required check `build` live, verified by API, not assumed.
+- [x] Competitor reference corrected at the real URL (`57blocks/stellar-resource-usage-report`, verified **live** 2026-08-03) — no "dead project" language.
+- [x] All four closeout verifications re-confirmed with observed evidence (CI run list, protection JSON, issue bodies, crate-name index).
 
 ---
 
@@ -160,9 +166,21 @@ fmt drift fixed, three feature units committed, branch renamed).
 ### Session-4 findings worth remembering
 
 1. **Drips supplementary materials: none required** — repo review evaluates the repository itself; no docs site, demo video, or on-chain verification expected. Point system confirmed: Trivial 100 / Medium 150 / High 200.
-2. **SCF "Soroban Resource Usage Reporter" 404s** (`stellar/soroban-resource-usage-reporter` returns HTTP 404; GitHub search finds no match, 2026-08-03). Re-confirm immediately before applying; the README's differentiator section links to this now-dead URL.
+2. **Competitor reference corrected in Session 6** — the URL checked in Session 4 (`stellar/soroban-resource-usage-reporter`) had the wrong org and wrong repo name. The real project is `57blocks/stellar-resource-usage-report`, verified **live** on 2026-08-03 (page opened, README read): a real-time profiler that instruments test code against a local `stellar/quickstart` container. It does **not** track network config drift — the differentiator overlap question is closed. No "dead project" language remains.
 3. **rustfmt drift**: committed code was fmt-dirty against the current toolchain across 16 files — fixed in one `style(fmt)` commit, absorbed into the rewrite.
 4. **Branch protection is live**: direct pushes to `main` require a green `build` check + review; future changes go through PRs (the final docs commits were landed via a brief, fully re-enabled protection window).
+
+### Session 6 — Closeout (CID-053 … CID-059)
+
+| CID | Item | Status | What happened |
+|-----|------|--------|---------------|
+| CID-053 | `fix(docs)` competitor claim | ✅ | README + ROADMAP re-grounded: real project is `57blocks/stellar-resource-usage-report`, verified **live** 2026-08-03; claim now mechanism-based (theirs: test-code instrumentation vs local quickstart; this tool: artifacts + live RPC + config-drift tracking); no "dead project" language. |
+| CID-054 | `test(repo)` CI re-verified | ✅ | `gh run list` on `main`: **5/5 `completed/success`** incl. current HEAD `ca4b3c1` #30790520631 — the four roadmap-referenced runs confirmed plus one newer green run. |
+| CID-055 | `test(repo)` branch protection | ✅ | Raw API JSON re-fetched: `required_status_checks` strict, `contexts:["build"]`, `required_approving_review_count:1`, `enforce_admins:true`, force-pushes/deletions blocked — original settings live, not permissive. |
+| CID-056 | `test(repo)` issue backlog | ✅ | All 6 issue bodies read in full; #1/#2/#3 partially implemented — remaining ACs are genuine, non-trivial tasks; done ACs checked off in issue bodies; #3 gained a status comment. |
+| CID-057 | `test(repo)` crate name | ✅ | `https://index.crates.io/soroban-cost-estimator` → HTTP 404 (NoSuchKey) and `cargo search soroban-cost-estimator` empty → name **available**. |
+| CID-058 | `chore(release)` dry-run | ✅ | `cargo publish --dry-run` re-run — still clean. Real publish still needs a crates.io token (user action). |
+| CID-059 | `ops` pre-apply checks | ✅ | 57blocks scope re-confirmed live; Drips approved-repo list re-checked. The application itself is a user browser action. |
 
 ---
 
@@ -182,7 +200,7 @@ fmt drift fixed, three feature units committed, branch renamed).
 1. Sign in to the Drips Wave app with GitHub.
 2. Maintainers → Orgs and Repos → install the **Drips Wave GitHub App** on the org hosting this repo.
 3. Sync and apply this repo to the **Stellar Wave Program**.
-4. **Immediately before applying** (fresh, not inherited): re-confirm the repo isn't already in the approved-repo list, and re-confirm the SCF reporter's status (finding #2 above — it currently 404s, so the differentiator overlap question is open until re-checked).
+4. **Immediately before applying** (fresh, not inherited): re-confirm the repo isn't already in the approved-repo list, and re-confirm the 57blocks project's scope (Session 6 verified it live: real-time test instrumentation, no config-drift tracking — this tool's differentiator stands).
 5. If rejected, use the Drips appeal process (wait ≥2 weeks, substantive repo changes, max 3 appeals).
 
 ### 3. Contributor backlog — the 6 live issues (P1, for the first sprint)
@@ -200,7 +218,7 @@ After approval: set Medium/High complexity tiers in the Drips dashboard (GitHub-
 
 ### 4. Small repo fix-ups (P2)
 
-- **README differentiator dead link**: the linked `stellar/soroban-resource-usage-reporter` 404s — update the link/narrative (scope-freeze respected so far; no change made).
+- ✅ **README differentiator claim corrected (Session 6)** — now points at the real project `57blocks/stellar-resource-usage-report` and grounds the claim in mechanism (theirs: real-time test-code instrumentation against a local container; this tool: compiled artifacts + live RPC simulation + network config-drift tracking).
 - Cosmetic: banner/logo + contrib.rocks — last or skipped.
 
 ### 5. Stretch (P3, post-submission)
@@ -265,7 +283,7 @@ soroban-cost-estimator watch --network mainnet --interval 1h
 
 ---
 
-## 📋 Conversation Map — All IDs (CID-001 … CID-052)
+## 📋 Conversation Map — All IDs (CID-001 … CID-059)
 
 ```
 CID-001 … CID-024   Session 1 — initial build (scaffold → CLI → wasm → rpc → fee → report → xdr → snapshot → diff → cache → wiring → CI → docs → tests)
@@ -297,6 +315,13 @@ CID-049  chore(repo)         ← URLs, licenses, topics, branch protection
 CID-050  docs(fixture)       ← cross-check README (contract ID + numbers + repro)
 CID-051  feat(issues)        ← 6 issues created + annotated
 CID-052  chore(release)      ← v0.1.0 tag + publish dry-run (real publish: user token)
+CID-053  fix(docs)           ← competitor reference corrected (57blocks/stellar-resource-usage-report, live)
+CID-054  test(repo)          ← CI re-verified 5/5 green incl. ca4b3c1
+CID-055  test(repo)          ← branch protection re-verified (build/strict/review/enforce-admins)
+CID-056  test(repo)          ← issues re-read; landed ACs checked off; #3 annotated
+CID-057  test(repo)          ← crate name available (index 404 + empty cargo search)
+CID-058  chore(release)      ← publish dry-run re-run clean (real publish: user token)
+CID-059  ops                 ← pre-apply checks fresh (57blocks scope + approved list)
 ```
 
 ### Test suite summary (53, all passing — verified locally and in CI)
