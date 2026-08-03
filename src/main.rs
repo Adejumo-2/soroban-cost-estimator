@@ -57,6 +57,11 @@ async fn run(args: cli::Cli) -> error::AppResult<()> {
         cli::Command::Watch { network, interval } => cmd_watch(&network, &interval).await,
     }
 }
+
+/// True when a simulation response carried neither cost data, nor
+/// transaction data, nor a latest ledger — the signature of a misconfigured
+/// request (bad `--id`, wrong network, or RPC schema drift), not a free
+/// transaction.
 fn missing_simulation_data(resp: &rpc::simulate::SimulateTransactionResponse) -> bool {
     resp.cost.is_none() && resp.transaction_data.is_none() && resp.latest_ledger.is_none()
 }
@@ -598,82 +603,119 @@ fn parse_interval_secs(interval: &str) -> u64 {
 /// long-running command can stop gracefully.
 ///
 /// # Network calls
-/// `watch` command: poll network config and print diffs.
-async fn cmd_watch(network: &str, interval: &str) -> error::AppResult<()> {
-    let interval_secs: u64 = parse_interval_secs(interval);
+/// None — waits on OS signals.
+async fn shutdown_signal() -> error::AppResult<()> {
+    #[cfg(unix)]
+    {
+        let mut sigterm =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = sigterm.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
+    Ok(())
+}
 
-    println!(
-        "Watching {} for config changes every {}s...",
-        network, interval_secs
-    );
+/// Runs one `watch` poll cycle: fetch the network config, diff it against
+/// the previous snapshot, print changes and stale-estimate info, then save
+/// the new snapshot.
+///
+/// # Network calls
+/// Makes one batched `getLedgerEntries` RPC call.
+async fn watch_poll_once(network: &str, first: &mut bool) -> error::AppResult<()> {
+    let endpoint = rpc::client::resolve_endpoint(network, None)?;
+    let client = rpc::client::RpcClient::new(&endpoint);
 
-    let mut first = true;
-    loop {
-        let endpoint = rpc::client::resolve_endpoint(network, None)?;
-        let client = rpc::client::RpcClient::new(&endpoint);
+    match rpc::config::fetch_all_config_settings(&client).await {
+        Ok(raw_entries) => {
+            let mut snapshot = xdr_helper::begin_snapshot(network, 0);
+            for raw in &raw_entries {
+                if let Ok(config_entry) = xdr_helper::decode_config_entry_xdr(&raw.config_xdr) {
+                    xdr_helper::apply_config_entry(&mut snapshot, config_entry);
+                }
+            }
+            if let Some(latest) = raw_entries.iter().map(|e| e.last_modified_ledger).max() {
+                snapshot.ledger = latest;
+            }
 
-        match rpc::config::fetch_all_config_settings(&client).await {
-            Ok(raw_entries) => {
-                let mut snapshot = xdr_helper::begin_snapshot(network, 0);
-                for raw in &raw_entries {
-                    if let Ok(config_entry) =
-                        xdr_helper::decode_config_entry_xdr(&raw.config_xdr)
-                    {
-                        xdr_helper::apply_config_entry(&mut snapshot, config_entry);
+            if !*first {
+                if let Ok(old_snapshot) = config_snapshot::store::load_latest_snapshot(network) {
+                    let diff = config_snapshot::diff::diff_snapshots(&old_snapshot, &snapshot);
+                    if !diff.changes.is_empty() {
+                        println!("{}", config_snapshot::diff::format_diff(&diff));
                     }
-                }
-                if let Some(latest) = raw_entries.iter().map(|e| e.last_modified_ledger).max() {
-                    snapshot.ledger = latest;
-                }
 
-                if !first {
-                    if let Ok(old_snapshot) =
-                        config_snapshot::store::load_latest_snapshot(network)
-                    {
-                        let diff =
-                            config_snapshot::diff::diff_snapshots(&old_snapshot, &snapshot);
-                        if !diff.changes.is_empty() {
-                            println!("{}", config_snapshot::diff::format_diff(&diff));
-                        }
-
-                        // Always check for stale cached estimates, regardless of pricing changes
-                        if let Ok(estimates) = cache::list_cached_estimates(network) {
-                            if !estimates.is_empty() {
-                                let stale =
-                                    cache::find_stale_estimates(&estimates, snapshot.ledger);
-                                if stale.is_empty() {
+                    // Always check for stale cached estimates, regardless of pricing changes
+                    if let Ok(estimates) = cache::list_cached_estimates(network) {
+                        if !estimates.is_empty() {
+                            let stale = cache::find_stale_estimates(&estimates, snapshot.ledger);
+                            if stale.is_empty() {
+                                println!(
+                                    "  All cached estimates are current (ledger {}).",
+                                    snapshot.ledger
+                                );
+                            } else {
+                                println!(
+                                    "  {} cached estimate(s) from earlier ledger(s) — may be stale:",
+                                    stale.len()
+                                );
+                                for est in &stale {
                                     println!(
-                                        "  All cached estimates are current (ledger {}).",
-                                        snapshot.ledger
+                                        "    - {} @ ledger {} (current: {})",
+                                        est.function, est.ledger, snapshot.ledger
                                     );
-                                } else {
-                                    println!(
-                                        "  {} cached estimate(s) from earlier ledger(s) — may be stale:",
-                                        stale.len()
-                                    );
-                                    for est in &stale {
-                                        println!(
-                                            "    - {} @ ledger {} (current: {})",
-                                            est.function, est.ledger, snapshot.ledger
-                                        );
-                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                let _ = config_snapshot::store::save_snapshot(&snapshot, None);
-                first = false;
-            }
-            Err(e) => {
-                eprintln!("Warning: failed to fetch config: {e}");
-            }
+            let _ = config_snapshot::store::save_snapshot(&snapshot, None);
+            *first = false;
         }
+        Err(e) => {
+            eprintln!("Warning: failed to fetch config: {e}");
+        }
+    }
+    Ok(())
+}
 
-        tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+/// `watch` command: poll network config and print diffs.
+///
+/// Polls immediately, then on `interval`, until SIGINT (Ctrl-C) or SIGTERM
+/// is received — then exits cleanly with code 0. The in-flight poll is
+/// cancelled rather than writing a partial snapshot.
+async fn cmd_watch(network: &str, interval: &str) -> error::AppResult<()> {
+    let interval_secs: u64 = parse_interval_secs(interval);
+
+    println!(
+        "Watching {} for config changes every {}s... (Ctrl-C to stop)",
+        network, interval_secs
+    );
+
+    let mut first = true;
+    loop {
+        tokio::select! {
+            signal = shutdown_signal() => {
+                signal?;
+                println!("Received stop signal — exiting cleanly.");
+                return Ok(());
+            }
+            () = async {
+                let _ = watch_poll_once(network, &mut first).await;
+                tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+            } => {}
+        }
     }
 }
+
+#[cfg(test)]
 mod tests {
     use super::parse_interval_secs;
 
