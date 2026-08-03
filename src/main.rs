@@ -46,6 +46,11 @@ async fn run(args: cli::Cli) -> error::AppResult<()> {
             id,
             json,
         } => cmd_estimate_all(&wasm, &network, id.as_deref(), json).await,
+        cli::Command::Config { action } => match action {
+            cli::ConfigAction::Snapshot { network, out, json } => {
+                cmd_config_snapshot(&network, out.as_deref(), json).await
+            }
+        },
     }
 }
 fn missing_simulation_data(resp: &rpc::simulate::SimulateTransactionResponse) -> bool {
@@ -478,5 +483,37 @@ async fn estimate_all_function(
             }
         }
     }
+}
+
+/// `config snapshot` command: fetch config settings and save snapshot.
+async fn cmd_config_snapshot(
+    network: &str,
+    out_path: Option<&str>,
+    json_flag: bool,
+) -> error::AppResult<()> {
+    let endpoint = rpc::client::resolve_endpoint(network, None)?;
+    let client = rpc::client::RpcClient::new(&endpoint);
+    let raw_entries = rpc::config::fetch_all_config_settings(&client).await?;
+
+    let mut snapshot = xdr_helper::begin_snapshot(network, 0);
+    for raw in &raw_entries {
+        let config_entry = xdr_helper::decode_config_entry_xdr(&raw.config_xdr)?;
+        xdr_helper::apply_config_entry(&mut snapshot, config_entry);
+    }
+    if let Some(latest) = raw_entries.iter().map(|e| e.last_modified_ledger).max() {
+        snapshot.ledger = latest;
+    }
+
+    let path = config_snapshot::store::save_snapshot(&snapshot, out_path)?;
+
+    if json_flag {
+        println!("{}", serde_json::to_string_pretty(&snapshot)?);
+        return Ok(());
+    }
+    println!("Config snapshot saved to: {}", path.display());
+    println!("Network: {}", snapshot.network);
+    println!("Ledger:  {}", snapshot.ledger);
+    println!("Time:    {}", snapshot.timestamp);
+    Ok(())
 }
 
