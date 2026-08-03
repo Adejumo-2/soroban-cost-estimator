@@ -1,0 +1,15 @@
+[package]
+name = "increment-fixture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = "25.3.0"
+
+[profile.release]
+opt-level = "s"
+lto = true
