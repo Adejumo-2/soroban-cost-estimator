@@ -56,7 +56,7 @@ soroban-cost-estimator estimate \
 ```
 
 This is the exact invocation cross-checked against the native Stellar CLI
-(see [Verification](verification.md)). Actual output from a live testnet run:
+(see [Verification](../verification.md)). Actual output from a live testnet run:
 
 ```text
 Function: increment
@@ -89,7 +89,7 @@ Fee Breakdown:
 
 The fee column in the resource table is intentionally blank: the per-resource
 fee is embedded in the non-refundable total, which is derived from the
-network's own config rates. See [Resource Fees](concepts/resource-fees.md)
+network's own config rates. See [Resource Fees](../concepts/resource-fees.md)
 for the traced math.
 
 ## Example — machine-readable output
@@ -124,5 +124,4 @@ soroban-cost-estimator estimate \
 ```
 
 Use `--json` when feeding the result into a CI pipeline or another tool. The
-result is also written to the estimate cache (see
-[Caching](concepts/caching.md)).
+result is also written to the estimate cache(see [Caching](../concepts/caching.md)).

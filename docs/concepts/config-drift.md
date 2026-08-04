@@ -82,5 +82,5 @@ curiosity. The intended loop:
 3. When it exits 1, re-estimate the affected contracts, refresh the cache,
    and update any downstream cost assumptions before they mislead users.
 
-The [watch](commands/watch.md) command automates step 2: it polls on an
+The [watch](../commands/watch.md) command automates step 2: it polls on an
 interval and prints a diff the moment the network's pricing model changes.

@@ -49,7 +49,7 @@ intentional: it is the ledger against which stale-cache checks are made.
 ## What you get
 
 The snapshot JSON contains the decoded values of all six settings, including
-the fee rates used by `estimate` (see [Resource Fees](concepts/resource-fees.md)):
+the fee rates used by `estimate` (see [Resource Fees](../concepts/resource-fees.md)):
 
 - `contract_compute` — `fee_rate_per_instructions_increment`, memory limits
 - `contract_ledger_cost` — read/write entry fees, per-KB disk fees, rent rates

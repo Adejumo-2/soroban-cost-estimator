@@ -44,8 +44,7 @@ Network: testnet
 ```
 
 Note the stale-cache cross-reference: this machine had one cached estimate
-recorded at ledger 0, so the tool names it. See
-[Caching](concepts/caching.md) for how that works.
+recorded at ledger 0, so the tool names it.See [Caching](../concepts/caching.md) for how that works.
 
 ## Example — comparing against an explicit snapshot
 
@@ -73,5 +72,5 @@ Found 1 field change(s):
 ```
 
 and the command exits **1**. Re-run `estimate` for the affected contracts and
-refresh the snapshots. See [Config Drift](concepts/config-drift.md) for the
+refresh the snapshots. See [Config Drift](../concepts/config-drift.md) for the
 workflow this enables.

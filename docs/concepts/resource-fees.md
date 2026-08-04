@@ -42,8 +42,7 @@ portion is simply the remainder: `total − non_refundable`.
 
 ## The real numbers
 
-The cross-check against a live deployed contract (see
-[Verification](verification.md)) used `increment(step=5)` on testnet. The
+The cross-check against a live deployed contract(see [Verification](../verification.md)) used `increment(step=5)` on testnet. The
 live run reported:
 
 ```
@@ -93,4 +92,4 @@ fee is then visibly understated rather than silently wrong:
 Warning: fee rate source(s) ContractComputeV0 unavailable — affected rate(s) set to 0 (non-refundable fee understated)
 ```
 
-See the [FAQ](faq.md) for what this means in practice.
+See the [FAQ](../faq.md) for what this means in practice.
