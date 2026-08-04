@@ -6,6 +6,8 @@
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-GitBook-3884FF)](https://soroban-cost-estimator.gitbook.io/soroban-cost_estimator-docs)
 
+[📚 Documentation](https://soroban-cost-estimator.gitbook.io/soroban-cost_estimator-docs)
+
 **Estimate Soroban contract resource costs & track network pricing changes over time.**
 
 This CLI tool wraps Stellar's `simulateTransaction` RPC to report real resource
