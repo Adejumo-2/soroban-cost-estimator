@@ -4,6 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/soroban-cost-estimator)](https://crates.io/crates/soroban-cost-estimator)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE)
 [![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-GitBook-3884FF)](https://soroban-cost-estimator.gitbook.io/soroban-cost_estimator-docs)
 
 **Estimate Soroban contract resource costs & track network pricing changes over time.**
 
