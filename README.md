@@ -1,10 +1,26 @@
-# Soroban Cost Estimator
+<p align="center">
+  <img src="./assets/logo.png" alt="Soroban Cost Estimator Logo" width="500"/>
+</p>
 
-[![CI](https://github.com/aigbagbobila/soroban-cost-estimator/actions/workflows/ci.yml/badge.svg)](https://github.com/aigbagbobila/soroban-cost-estimator/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/soroban-cost-estimator)](https://crates.io/crates/soroban-cost-estimator)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE)
-[![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-blue)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-GitBook-3884FF)](https://soroban-cost-estimator.gitbook.io/soroban-cost_estimator-docs)
+<p align="center">
+  <a href="https://github.com/aigbagbobila/soroban-cost-estimator/actions/workflows/ci.yml">
+    <img src="https://github.com/aigbagbobila/soroban-cost-estimator/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+  </a>
+  <a href="https://crates.io/crates/soroban-cost-estimator">
+    <img src="https://img.shields.io/crates/v/soroban-cost-estimator" alt="Crates.io"/>
+  </a>
+  <a href="LICENSE-MIT">
+    <img src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue" alt="License: MIT OR Apache-2.0"/>
+  </a>
+  <a href="https://www.rust-lang.org/">
+    <img src="https://img.shields.io/badge/rust-1.85%2B-blue" alt="Rust 1.85+"/>
+  </a>
+  <a href="https://soroban-cost-estimator.gitbook.io/soroban-cost_estimator-docs">
+    <img src="https://img.shields.io/badge/docs-GitBook-3884FF" alt="Docs"/>
+  </a>
+</p>
+
+# Soroban Cost Estimator
 
 [📚 Documentation](https://soroban-cost-estimator.gitbook.io/soroban-cost_estimator-docs)
 
