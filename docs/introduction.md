@@ -44,3 +44,8 @@ versioned artifact.
 | `tests/` | Integration tests plus the fixture contract and its cross-check record (`fixtures/contract/README.md`) |
 
 The full source is on GitHub: <https://github.com/aigbagbobila/soroban-cost-estimator>
+
+## Socials
+
+- [Telegram](https://t.me/+O3iICQDcZEViM2Nk)
+- [Discord](https://discord.gg/KSatPckM2)

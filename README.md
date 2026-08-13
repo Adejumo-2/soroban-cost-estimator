@@ -321,6 +321,11 @@ the `build` check must be green for changes to merge.
 
 `stellar`, `soroban`, `cli`, `developer-tooling`, `gas-estimation`
 
+## Socials
+
+- [Telegram](https://t.me/+O3iICQDcZEViM2Nk)
+- [Discord](https://discord.gg/KSatPckM2)
+
 ## Contact
 
 - GitHub issues: <https://github.com/aigbagbobila/soroban-cost-estimator/issues>
