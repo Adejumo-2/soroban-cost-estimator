@@ -47,15 +47,16 @@ async fn run(args: cli::Cli) -> error::AppResult<()> {
             json,
         } => cmd_estimate_all(&wasm, &network, id.as_deref(), json).await,
         cli::Command::Config { action } => match action {
-            cli::ConfigAction::Snapshot { network, out, json } => {
-                cmd_config_snapshot(&network, out.as_deref(), json).await
-            }
+            cli::ConfigAction::Snapshot {
+                network,
+                out,
+                json,
+                retain,
+            } => cmd_config_snapshot(&network, out.as_deref(), json, retain).await,
             cli::ConfigAction::Diff { network, against } => {
                 cmd_config_diff(&network, against.as_deref()).await
             }
-            cli::ConfigAction::Show { network, at, json } => {
-                cmd_config_show(&network, &at, json)
-            }
+            cli::ConfigAction::Show { network, at, json } => cmd_config_show(&network, &at, json),
         },
         cli::Command::Watch { network, interval } => cmd_watch(&network, &interval).await,
     }
@@ -502,6 +503,7 @@ async fn cmd_config_snapshot(
     network: &str,
     out_path: Option<&str>,
     json_flag: bool,
+    retain_days: Option<u64>,
 ) -> error::AppResult<()> {
     let endpoint = rpc::client::resolve_endpoint(network, None)?;
     let client = rpc::client::RpcClient::new(&endpoint);
@@ -517,6 +519,16 @@ async fn cmd_config_snapshot(
     }
 
     let path = config_snapshot::store::save_snapshot(&snapshot, out_path)?;
+
+    if let Some(days) = retain_days {
+        let deleted = config_snapshot::store::clean_old_snapshots(network, days)?;
+        if deleted > 0 && !json_flag {
+            println!(
+                "Cleaned up {} old snapshot(s) according to retention policy.",
+                deleted
+            );
+        }
+    }
 
     if json_flag {
         println!("{}", serde_json::to_string_pretty(&snapshot)?);
